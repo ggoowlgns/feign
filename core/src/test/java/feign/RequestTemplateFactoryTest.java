@@ -17,8 +17,12 @@ package feign;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import feign.codec.Encoder;
+import feign.core.DefaultContract;
+import feign.core.DefaultQueryMapEncoder;
+import feign.core.codec.DefaultEncoder;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -51,11 +55,11 @@ class RequestTemplateFactoryTest {
     Encoder encoder =
         (body, type, template) -> {
           encoded.incrementAndGet();
-          new Encoder.Default().encode(body, type, template);
+          new DefaultEncoder().encode(body, type, template);
         };
     RequestTemplateFactory factory =
         RequestTemplateFactory.forMethod(
-            target, metadata("events"), encoder, new QueryMapEncoder.Default());
+            target, metadata("events"), encoder, new DefaultQueryMapEncoder());
     assertThat(encoded.get()).isZero();
     RequestTemplate template = factory.create(new Object[] {"prices", "a b&c", "payload"});
     assertThat(encoded.get()).isEqualTo(1);
@@ -66,14 +70,15 @@ class RequestTemplateFactoryTest {
     assertThat(request.headers()).containsEntry("X-Topic", Collections.singletonList("prices"));
     assertThat(request.headers())
         .containsEntry("Authorization", Collections.singletonList("test-value"));
-    assertThat(new String(request.body(), Util.UTF_8)).isEqualTo("payload");
+    assertThat(assertDoesNotThrow(() -> request.body().get().writeToString(Util.UTF_8)))
+        .isEqualTo("payload");
   }
 
   @Test
   void createsIndependentTemplatesOnEachInvocation() {
     RequestTemplateFactory factory =
         RequestTemplateFactory.forMethod(
-            target, metadata("events"), new Encoder.Default(), new QueryMapEncoder.Default());
+            target, metadata("events"), new DefaultEncoder(), new DefaultQueryMapEncoder());
     RequestTemplate first = factory.create(new Object[] {"first", "one", "body-1"});
     RequestTemplate second = factory.create(new Object[] {"second", "two", "body-2"});
     first.header("X-Only-First", "yes");
@@ -86,7 +91,7 @@ class RequestTemplateFactoryTest {
   void retainsNativeQueryAndHeaderMapSemantics() {
     RequestTemplateFactory factory =
         RequestTemplateFactory.forMethod(
-            target, metadata("mapped"), new Encoder.Default(), new QueryMapEncoder.Default());
+            target, metadata("mapped"), new DefaultEncoder(), new DefaultQueryMapEncoder());
     RequestTemplate template =
         factory.create(
             new Object[] {
@@ -105,14 +110,11 @@ class RequestTemplateFactoryTest {
         .isThrownBy(
             () ->
                 RequestTemplateFactory.forMethod(
-                    null,
-                    metadata("events"),
-                    new Encoder.Default(),
-                    new QueryMapEncoder.Default()));
+                    null, metadata("events"), new DefaultEncoder(), new DefaultQueryMapEncoder()));
     assertThatNullPointerException()
         .isThrownBy(
             () ->
                 RequestTemplateFactory.forMethod(
-                    target, null, new Encoder.Default(), new QueryMapEncoder.Default()));
+                    target, null, new DefaultEncoder(), new DefaultQueryMapEncoder()));
   }
 }

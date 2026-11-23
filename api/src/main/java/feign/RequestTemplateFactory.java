@@ -28,10 +28,17 @@ import feign.codec.Encoder;
  * <p>The caller owns request interception and applying the target after binding, as in Feign's
  * standard method handlers. No HTTP request is sent by this factory.
  */
+@Experimental
 @FunctionalInterface
 public interface RequestTemplateFactory {
 
-  /** Returns a new resolved template for the supplied invocation arguments. */
+  /**
+   * Returns a new resolved template for the supplied invocation arguments.
+   *
+   * @param arguments the invocation arguments, in declaration order, as received by the method
+   *     handler; must not be null, pass an empty array for methods without arguments
+   * @return an independent template with the method's parameters, headers and body resolved
+   */
   RequestTemplate create(Object[] arguments);
 
   /**
